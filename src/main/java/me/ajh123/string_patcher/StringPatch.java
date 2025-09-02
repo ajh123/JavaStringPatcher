@@ -33,7 +33,6 @@ public class StringPatch implements Patch {
         parser.accepts(ORIGINAL_TEXT, "The original text to replace").withRequiredArg().ofType(String.class);
         parser.accepts(OUTPUT_TEXT, "The new text to replace the original").withRequiredArg().ofType(String.class);
         parser.accepts(CLASS_PATH, "The path to the class file inside the jar to patch (e.g. com/example/Main.class)").withRequiredArg().ofType(String.class);
-        Patch.requireKey(parser);
         return parser;
     }
 
