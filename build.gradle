@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+}
+
+group = 'me.ajh123.axiom_patcher'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven {
+        name "graphiteOfficialReleases"
+        url "https://maven.graphite-official.com/releases"
+    }
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    implementation "me.mrletsplay:ShittyAuthPatcher:1.10-SNAPSHOT"
+    implementation "net.sf.jopt-simple:jopt-simple:6.0-alpha-3"
+}
+
+test {
+    useJUnitPlatform()
+}
