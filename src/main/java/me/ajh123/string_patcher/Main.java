@@ -1,4 +1,4 @@
-package me.ajh123.pubkey_patcher;
+package me.ajh123.string_patcher;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -12,7 +12,7 @@ public class Main {
     private static final Map<String, Patch> PATCHES = new LinkedHashMap<>();
 
     static {
-        PATCHES.put("axiom", new PubkeyPatch());
+        PATCHES.put("string", new StringPatch());
     }
 
     public static void main(String[] args) throws Exception {

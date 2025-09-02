@@ -1,4 +1,4 @@
-package me.ajh123.pubkey_patcher;
+package me.ajh123.string_patcher;
 
 import java.io.*;
 import java.nio.file.*;
@@ -12,55 +12,51 @@ import me.mrletsplay.mrcore.misc.classfile.util.ClassFileUtils;
 import me.mrletsplay.shittyauthpatcher.patch.Patch;
 import me.mrletsplay.shittyauthpatcher.util.PatchingException;
 
-public class PubkeyPatch implements Patch {
+public class StringPatch implements Patch {
     private static final String INPUT = "input";
     private static final String OUTPUT = "output";
-    private static final String PUBLIC_KEY = "public-key";
-    private static final String NEW_PUBLIC_KEY = "new-public-key";
+    private static final String ORIGINAL_TEXT = "original-text";
+    private static final String OUTPUT_TEXT = "output-text";
+    private static final String CLASS_PATH = "class-path";
 
-    public PubkeyPatch() {
+    public StringPatch() {
     }
 
     public String getDescription() {
-        return "Public key file jar patch";
+        return "Patcher that replaces strings in a class file inside a jar";
     }
 
     public OptionParser createParser() {
         OptionParser parser = Patch.createBaseParser();
         parser.accepts(INPUT, "Path to the input jar file").withRequiredArg().ofType(File.class).required();
         parser.accepts(OUTPUT, "Output file for the patched jar").withRequiredArg().ofType(File.class);
-        parser.accepts(PUBLIC_KEY, "Path to the public key file to replace. Must be in X.509 SubjectPublicKeyInfo format (without headers)").withRequiredArg().ofType(File.class);
-        parser.accepts(NEW_PUBLIC_KEY, "Path to the public key file to use. Must be in X.509 SubjectPublicKeyInfo format (without headers)").withRequiredArg().ofType(File.class);
+        parser.accepts(ORIGINAL_TEXT, "The original text to replace").withRequiredArg().ofType(String.class);
+        parser.accepts(OUTPUT_TEXT, "The new text to replace the original").withRequiredArg().ofType(String.class);
+        parser.accepts(CLASS_PATH, "The path to the class file inside the jar to patch (e.g. com/example/Main.class)").withRequiredArg().ofType(String.class);
         Patch.requireKey(parser);
         return parser;
     }
 
     public void patch(OptionSet options) throws Exception {
-        File serverFile = (File)options.valueOf(INPUT);
-        File pubKey = (File)options.valueOf(PUBLIC_KEY);
-        File newPublicKey = (File)options.valueOf(NEW_PUBLIC_KEY);
+        File inputFile = (File)options.valueOf(INPUT);
+        String originalText = (String)options.valueOf(ORIGINAL_TEXT);
+        String outputText = (String)options.valueOf(OUTPUT_TEXT);
+        String classPath = (String)options.valueOf(CLASS_PATH);
 
-
-        if (!serverFile.exists()) {
-            throw new FileNotFoundException(serverFile.getAbsolutePath());
-        }
-        if (!pubKey.exists()) {
-            throw new FileNotFoundException(pubKey.getAbsolutePath());
-        }
-        if (!newPublicKey.exists()) {
-            throw new FileNotFoundException(newPublicKey.getAbsolutePath());
+        if (!inputFile.exists()) {
+            throw new FileNotFoundException(inputFile.getAbsolutePath());
         }
 
-        File out = serverFile;
+        File out = inputFile;
         if (options.has(OUTPUT)) {
             out = (File)options.valueOf(OUTPUT);
         }
 
-        System.out.println("Output for axiom: " + out.getAbsolutePath());
-        doPatch(serverFile.toPath(), out.toPath(), newPublicKey, pubKey);
+        System.out.println("Output for patcher: " + out.getAbsolutePath());
+        doPatch(inputFile.toPath(), out.toPath(), originalText, outputText, classPath);
     }
 
-    public static void doPatch(Path inputLib, Path outputFile, File newPublicKey, File originalPubKey) throws IOException, PatchingException {
+    public static void doPatch(Path inputLib, Path outputFile, String originalText, String outputText, String classPath) throws IOException, PatchingException {
         System.out.println("Patching jar");
         if (!outputFile.equals(inputLib)) {
             Files.copy(inputLib, outputFile, StandardCopyOption.REPLACE_EXISTING);
@@ -68,23 +64,16 @@ public class PubkeyPatch implements Patch {
 
         try (FileSystem fs = FileSystems.newFileSystem(outputFile, (ClassLoader)null)) {
 
-            Path environment = fs.getPath("com/moulberry/axiom/utils/Authorization.class");
+            Path environment = fs.getPath(classPath);
             if (Files.exists(environment)) {
-                System.out.println("Patching Authorization.class");
+                System.out.println("Patching "+classPath);
 
                 ClassFile environmentClass;
                 try (InputStream in = Files.newInputStream(environment)) {
                     environmentClass = new ClassFile(in);
                 }
 
-                if (newPublicKey != null && newPublicKey.exists() && originalPubKey != null && originalPubKey.exists()) {
-                    String origKey = new String(Files.readAllBytes(originalPubKey.toPath())).replace("\n", "").replace("\r", "");
-                    String pubKey = new String(Files.readAllBytes(newPublicKey.toPath())).replace("\n", "").replace("\r", "");
-                    System.out.println("Copying public key from " + newPublicKey.getAbsolutePath());
-                    replaceStrings(environmentClass, origKey, pubKey);
-                } else {
-                    System.out.println("No public key provided or key file doesn't exist. Skipping");
-                }
+                replaceStrings(environmentClass, originalText, outputText);
 
                 try (OutputStream out = Files.newOutputStream(environment)) {
                     environmentClass.write(out);
